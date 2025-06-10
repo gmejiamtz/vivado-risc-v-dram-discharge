@@ -15,23 +15,11 @@ The project is used as reference design to validate RISC-V support in [Eclipse T
 
 AMD/Xilinx tools support debugging of RISC-V software over JTAG.
 
-# Prerequisites
+# Prerequisites for DRAM Discharge
 
 ## Hardware
-[AMD VC707](https://www.xilinx.com/products/boards-and-kits/ek-v7-vc707-g.html) or
-[AMD KC705](https://www.xilinx.com/products/boards-and-kits/ek-k7-kc705-g.html) or
 [Digilent Genesys 2](https://digilent.com/reference/programmable-logic/genesys-2/start) or
-[Digilent Nexys Video](https://digilent.com/reference/programmable-logic/nexys-video/start) or
-[Digilent Nexys A7 100T](https://digilent.com/reference/programmable-logic/nexys-a7/start) or
-[Digilent Arty A7 100T](https://digilent.com/reference/programmable-logic/arty-a7/start) board.
 
-VC707 allows to prototype more powerful system: up to 8 64-bit RISC-V cores, up to 100MHz clock speed, 1GB RAM.
-
-KC705 and Genesys 2 are as fast as VC707, but have slightly smaller FPGA - up to 4 cores.
-
-Nexys Video is several times less expensive, academic discount is avaialble. It supports up to 2 cores, up to 50MHz clock speed.
-
-Nexys A7 100T and Arty A7 100T are least expensive supported boards. They have small and slow FPGA, barely enough to run Linux on a single core RISC-V at 50MHz.
 
 ## Workstation
 [Ubuntu 20 LTS](https://ubuntu.com/download/desktop) machine with min 32GB RAM is recommended.
@@ -40,16 +28,25 @@ sudo access required.
 Alternatively, a Windows 10 machine with Ubuntu on Windows can be used to run the tools, see [Running RISC-V tools on Windows](docs/ubuntu-on-windows.md).
 
 ## Software
-Download and install AMD/Xilinx
-[Vitis](https://www.xilinx.com/support/download/index.html/content/xilinx/en/downloadNav/vitis.html).
-Supported Vitis versions are 2020.2, 2021.1, 2021.2, 2022.1, 2022.2, 2023.1, 2023.2, 2024.1, 2024.2.
-Vitis installation includes Vivado Design Suite - there is no need to install Vivado separately.
-
-Nexys Video, Nexys A7 100T and Arty A7 100T are supported by free version of Vivado. KC705, VC707 and Genesys 2 require Vivado license.
+Download and install AMD/Xilinx 2019.2
 
 If using a Digilent board, install [Vivado Board Files for Digilent FPGA Boards](https://github.com/Digilent/vivado-boards).
 
-# Usage
+### Adding Genesys2 Support in Vivado
+
+```bash
+cd ~
+git clone https://github.com/Digilent/vivado-boards.git
+source $path_to_vivado_2019.2_install/setthings64.sh
+#Get board files to be recognized by Vivado 2019.2 itself
+echo "set_param board.repoPaths {~/vivado-boards/new/board_files/genesys2/H}" >> $HOME/.Xilinx/Vivado/2019.2/Vivado_init.tcl
+#Open Vivado
+vivado
+#in Vivado
+set_param board.repoPaths {$HOME/.Xilinx/Vivado/2019.2/xhub/board_store ~/vivado-boards}
+```
+
+# Usage to disable DRAM Refresh 
 
 ## Checkout the repository, install required packages and update submodules
 ```
@@ -60,47 +57,43 @@ make apt-install
 make update-submodules
 ```
 
-## Build FPGA bitstream
+## Build FPGA Project
 ```
-source /opt/Xilinx/Vivado/2024.2/settings64.sh
-make CONFIG=rocket64b2 BOARD=nexys-video bitstream
+make CONFIG=rocket64b2 BOARD=genesys2 project
 ```
-For KC705, use `BOARD=kc705`
 
-For VC707, use `BOARD=vc707`
+## Disabling DRAM Auto-Refresh
 
-For Genesys 2 use `BOARD=genesys2`
+To disable automatic DRAM refresh via the Memory Interface Generator (MIG):
 
-For Nexys A7 100T use `BOARD=nexys-a7-100t`
+### Step 1: Modify MIG RTL
 
-For Arty A7 100T use `BOARD=arty-a7-100t`
+Edit the following file:
 
-Some of available CONFIG values (See [rocket.scala](https://github.com/eugene-tarassov/vivado-risc-v/blob/master/src/main/scala/rocket.scala)):
-* 64-bit big RISC-V cores, Linux capable:
-  * `rocket64b1` - 1 core
-  * `rocket64b2` - 2 cores
-  * `rocket64b2l2` - 2 cores with 512KB level 2 cache
-  * `rocket64b2gem` - 2 cores with 512KB level 2 cache and Gemmini accelerator
-  * `rocket64b4l2w` - 4 cores with 512KB level 2 cache and wide 256-bit memory bus
-  * `rocket64b4` - 4 cores
-  * `rocket64b8` - 8 cores
-* 64-bit Sonic BOOM cores, Linux capable:
-  * `rocket64w1` - 1-wide Small BOOM, 1 core
-  * `rocket64x1` - 2-wide superscalar Medium BOOM, 1 core
-  * `rocket64y1` - 3-wide superscalar Large BOOM, 1 core
-  * `rocket64z1` - 4-wide superscalar Mega BOOM, 1 core
-* 32-bit small RISC-V cores, Linux not supported:
-  * `rocket32s1` - 1 core
-  * `rocket32s2` - 2 cores
-  * `rocket32s4` - 4 cores
-  * `rocket32s8` - 8 cores
-  * `rocket32s16` - 16 cores
+```
+/workspace/rocket64b2/vivado-genesys2-riscv/genesys2-riscv.srcs/sources_1/bd/riscv/ip/riscv_mig_7series_0_0/\
+riscv_mig_7series_0_0/user_design/rtl/controller/mig_7series_v4_2_mc.v
+```
 
-FPGA utilization, LUTs:
-* 32-bit small RISC-V: 10,800 + 6,100 per core
-* 64-bit big RISC-V: 10,800 + 27,500 per core
-* 2-wide superscalar Medium BOOM, 1 core, L2 cache: 148,500
-* 3-wide superscalar Large BOOM, 1 core, L2 cache: 252,700
+Locate the `USER_REFRESH` parameter and set it to `"ON"`:
+
+```verilog
+.USER_REFRESH("ON")
+```
+
+### Step 2: Set Global Synthesis Context in Vivado
+
+To ensure that your changes to the MIG RTL are included:
+
+1. In Vivado, right-click on **"Generate Block Design"**.
+2. Under **Synthesis Options**, choose **"Global"** instead of the default **Out-of-Context**.
+
+This ensures Vivado re-synthesizes the full design with your RTL modifications.
+
+![Global Context Option](docs/images/global_context.png)
+
+### Step 3: Generate Bitstream and Program the Board
+
 
 ## Prepare the SD card
 Use USB SD card reader to connect SD card to the workstation, and run:
@@ -153,104 +146,3 @@ or, after Linux boot, over SSH:
 ```
 ssh debian@debian
 ```
-
-## Modding the design (optional): adding a peripheral device
-
-### Use Vivado Block Design to add an IP
-
-Open Vivado:
-```
-source /opt/Xilinx/Vivado/2024.2/settings64.sh
-make CONFIG=rocket64b2 BOARD=nexys-video vivado-gui
-```
-The IO block in the design is the best place to add device controllers, like GPIO.
-See AXI Uartlite as an example, connect your IP to AXI interconnect and interrupts.
-Validate and synthesize the design, but don't build bitstream yet - device tree and RISC-V HDL need to be updated first.
-
-Close Vivado.
-
-### Check the device driver is enabled in patches/linux.config
-
-For example, for AMD/Xilinx GPIO, the config should contain line:
-```
-CONFIG_GPIO_XILINX=y
-```
-
-If necessary, change config, then rebuild Linux kernel and bootloader:
-```
-make linux bootloader
-./mk-sd-image -r debian-riscv64-boot
-```
-Copy debian-riscv64-boot/extlinux directory to the SD card.
-
-Note: don't change files in the project submodules: linux-stable, u-boot, opensbi or rocket-chip.
-Such changes are lost when the project is rebuilt.
-
-For details on AMD/Xilinx drivers, see [Linux Drivers](https://xilinx-wiki.atlassian.net/wiki/spaces/A/pages/18841873/Linux%2BDrivers).
-
-### Edit board/nexys-video/bootrom.dts
-
-Add device description in the "io-bus {...}" section.
-For example, GPIO description can look like this:
-```
-        gpio: gpio@60030000 {
-            #gpio-cells = <2>;
-            compatible = "xlnx,xps-gpio-1.00.a";
-            gpio-controller ;
-            interrupt-parent = <&L2>;
-            interrupts = <4>;
-            reg = < 0x60030000 0x10000 >;
-            xlnx,all-inputs = <0x0>;
-            xlnx,dout-default = <0x0>;
-            xlnx,gpio-width = <0x8>;
-            xlnx,interrupt-present = <0x1>;
-            xlnx,is-dual = <0>;
-            xlnx,tri-default = <0xffffffff>;
-        };
-```
-Make sure the description matches your design. In particular, check addresses and interrupt numbers.
-
-### Rebuild FPGA bitstream
-```
-make CONFIG=rocket64b2 BOARD=nexys-video bitstream
-```
-Program the FPGA or the board flash memory.
-
-# Prebuilt images
-
-Prebuilt FPGA bitstream and SD card image are available in the [releases area](https://github.com/eugene-tarassov/vivado-risc-v/releases).
-
-# Notes
-
-Rocket Chip is used as RISC-V implementation: [UC Berkeley Architecture Research - Rocket Chip Generator](https://bar.eecs.berkeley.edu/projects/rocket_chip.html).
-Rocket Chip is configured to include virtual memory, instruction and data caches, coherent interconnect, floating point, and all the relevant infrastructure.
-See [rocket.scala](https://github.com/eugene-tarassov/vivado-risc-v/blob/master/src/main/scala/rocket.scala) for Rocket Chip configuration classes.
-
-RISC-V SoC in this repo contains bootrom, which differ from original Rocket Chip bootrom.
-The modified bootrom contains SD card boot loader and extended device tree.
-
-RISC-V SoC in this repo contains DDR, UART, SD and Ethernet controllers.
-DDR is provided by Vivado. UART, SD and Ethernet are open source Verilog.
-
-SD controller implements SD HS (High Speed) specs, 25MB/s read/write speed.
-
-Ethernet controller is based on [Verilog Ethernet Components](https://github.com/alexforencich/verilog-ethernet) project,
-which is a collection of Ethernet-related components for gigabit, 10G, and 25G packet processing.
-
-Linux kernel and U-Boot use device tree, which is stored in RISC-V bootrom in FPGA.
-So, same SD card should boot OK on any board or RISC-V configuration.
-
-Nexys Video and Nexys A7 boards can be configured to [load FPGA bitstream from SD card](https://reference.digilentinc.com/reference/programmable-logic/nexys-video/reference-manual#usb_host_and_micro_sd_programming).
-
-The device tree contains Ethernet MAC address, which is not unique.
-It might be necessary to rebuild bitstream with different MAC, see Makefile for details.
-
-If not using provided SD card image: the bootrom loads and executes boot.elf file from SD card DOS partition.
-boot.elf is regular executable ELF, it can contain any software suitable for RISC-V RV64 M mode.
-In case of Linux boot, boot.elf contains OpenSBI and U-Boot.
-
-The Makefile creates Vivado project directory, e.g. workspace/rocket64b2/vivado-nexys-video-riscv.
-You can open the project in Vivado GUI to see RISC-V SoC structure, make changes, add peripherals, rebuild the bitstream.
-The SoC occupies portion of FPGA, leaving plenty of space for experiments and developing additional hardware.
-
-RISC-V SoC in this repo uses BSCAN block to support both RISC-V debugging and FPGA access over same JTAG cable.
