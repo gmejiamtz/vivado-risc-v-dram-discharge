@@ -18,7 +18,7 @@ AMD/Xilinx tools support debugging of RISC-V software over JTAG.
 # Prerequisites for DRAM Discharge
 
 ## Hardware
-[Digilent Genesys 2](https://digilent.com/reference/programmable-logic/genesys-2/start) or
+[Digilent Genesys 2](https://digilent.com/reference/programmable-logic/genesys-2/start)
 
 
 ## Workstation
