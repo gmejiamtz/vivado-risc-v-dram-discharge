@@ -85,7 +85,7 @@ Locate the `USER_REFRESH` parameter and set it to `"ON"`:
 
 To ensure that your changes to the MIG RTL are included:
 
-1. In Vivado, right-click on **"Generate Block Design"**.
+1. In Vivado, click on **"Generate Block Design"**.
 2. Under **Synthesis Options**, choose **"Global"** instead of the default **Out-of-Context**.
 
 This ensures Vivado re-synthesizes the full design with your RTL modifications.
